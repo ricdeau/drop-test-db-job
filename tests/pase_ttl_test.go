@@ -30,10 +30,18 @@ var testSource = []testData{
 	{input: "", expected: 0, error: fmt.Errorf(`ttl string: invalid format "", ttl examples: "1h", "2h 45m", "30m"`)},
 }
 
-func TestTryParseTTL(t *testing.T) {
-	for _, testItem := range testSource {
-		duration, e := utils.TryParseTTL(testItem.input)
-		assert.Equal(t, testItem.error, e)
-		assert.Equal(t, testItem.expected, duration)
+func TestParallelTryParseTTL(t *testing.T) {
+	for _, testCase := range testSource {
+		tc := testCase
+		t.Run(tc.input, func(t *testing.T) {
+			t.Parallel()
+			testCaseTryParseTTL(t, &tc)
+		})
 	}
+}
+
+func testCaseTryParseTTL(t *testing.T, testItem *testData) {
+	duration, e := utils.TryParseTTL(testItem.input)
+	assert.Equal(t, testItem.error, e)
+	assert.Equal(t, testItem.expected, duration)
 }
