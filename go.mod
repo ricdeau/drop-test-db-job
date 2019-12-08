@@ -1,5 +1,5 @@
-module drop-test-db-job
-
-require github.com/stretchr/testify v1.4.0
+module github.com/ricdeau/drop-test-db-job
 
 go 1.13
+
+require github.com/robfig/cron/v3 v3.0.0
