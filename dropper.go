@@ -67,9 +67,11 @@ func run(d dbDropper) {
 
 	var dropped int32
 	var wg sync.WaitGroup
+	sem := Semaphore{counter: 4}
 	for name := range d.FilterOldDatabases(names) {
 		wg.Add(1)
 		go func(n string) {
+			sem.Enter()
 			err := d.DropDb(n)
 			if err != nil {
 				log.Printf("Job execution error: error while dropping %s: %v\n", n, err)
@@ -77,6 +79,7 @@ func run(d dbDropper) {
 				return
 			}
 			atomic.AddInt32(&dropped, 1)
+			sem.Exit()
 			wg.Done()
 		}(name)
 	}

@@ -17,8 +17,10 @@ const (
 )
 
 var (
-	ttlFlag                                         time.Duration
-	dbTypeFlag, connStringFlag, jobScheduleCronFlag string
+	ttlFlag             time.Duration
+	dbTypeFlag          string
+	connStringFlag      string
+	jobScheduleCronFlag string
 )
 
 func init() {
