@@ -2,24 +2,27 @@ package main
 
 import "sync"
 
-type Semaphore struct {
+type WaitingSemaphore struct {
+	sync.WaitGroup
 	counter int
 	ch      chan bool
 	once    sync.Once
 }
 
-func (s *Semaphore) Enter() {
+func (s *WaitingSemaphore) Acquire() {
 	if s.counter == 0 {
-		panic("Semaphore counter is 0")
+		panic("WaitingSemaphore counter is 0")
 	}
 	if s.ch == nil {
 		s.once.Do(func() {
 			s.ch = make(chan bool, s.counter)
 		})
 	}
+	s.Add(1)
 	s.ch <- true
 }
 
-func (s *Semaphore) Exit() {
+func (s *WaitingSemaphore) Release() {
 	<-s.ch
+	s.Done()
 }

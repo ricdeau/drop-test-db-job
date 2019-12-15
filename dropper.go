@@ -7,7 +7,6 @@ import (
 	"log"
 	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -66,24 +65,20 @@ func run(d dbDropper) {
 	log.Println("Start seeking and dropping old databases...")
 
 	var dropped int32
-	var wg sync.WaitGroup
-	sem := Semaphore{counter: 4}
+	sem := WaitingSemaphore{counter: 4}
 	for name := range d.FilterOldDatabases(names) {
-		wg.Add(1)
+		sem.Acquire()
 		go func(n string) {
-			sem.Enter()
+			defer sem.Release()
 			err := d.DropDb(n)
 			if err != nil {
 				log.Printf("Job execution error: error while dropping %s: %v\n", n, err)
-				wg.Done()
 				return
 			}
 			atomic.AddInt32(&dropped, 1)
-			sem.Exit()
-			wg.Done()
 		}(name)
 	}
-	wg.Wait()
+	sem.Wait()
 
 	log.Printf("%d old databases dropped\n", dropped)
 	log.Println("Job executed")
