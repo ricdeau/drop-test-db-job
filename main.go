@@ -11,9 +11,10 @@ import (
 	"time"
 )
 
+// Db engine type, for which job is scheduled
 const (
 	Postgres = "postgres"
-	MsSql    = "mssql"
+	MsSQL    = "mssql"
 )
 
 var (
@@ -25,7 +26,7 @@ var (
 
 func init() {
 	flag.DurationVar(&ttlFlag, "db-ttl", 6*time.Hour, "Database time to live")
-	flag.StringVar(&dbTypeFlag, "db-type", Postgres, "DB type. Must be postgres or MsSql")
+	flag.StringVar(&dbTypeFlag, "db-type", Postgres, "DB type. Must be postgres or MsSQL")
 	flag.StringVar(&connStringFlag, "conn-string", "", "DB connection string")
 	flag.StringVar(&jobScheduleCronFlag, "cron", "@every 10s", "Job Schedule in cron format")
 	flag.Parse()
@@ -64,8 +65,8 @@ func getDbDroppingJob(dbType string) (DbDroppingJob, error) {
 		return nil, fmt.Errorf("invalid db-type: %v", dbType)
 	case Postgres:
 		return new(PostgresDbDropper), nil
-	case MsSql:
-		return new(MsSqlDbDropper), nil
+	case MsSQL:
+		return new(MsSQLDbDropper), nil
 	}
 }
 

@@ -2,18 +2,23 @@ package main
 
 import "fmt"
 
-type MsSqlDbDropper struct {
+// MsSQLDbDropper is a DbDropper realisation for T-SQL dialect
+type MsSQLDbDropper struct {
 	DbDropper
 }
 
-func (d *MsSqlDbDropper) Run() {
+// Run - runs db dropper
+func (d *MsSQLDbDropper) Run() {
 	run(d)
 }
 
-func (d *MsSqlDbDropper) GetDbNames() (names []string, err error) {
+// GetDbNames - gets all database names that satisfies name condition
+func (d *MsSQLDbDropper) GetDbNames() (names []string, err error) {
 	return nil, fmt.Errorf("not implemented yet")
 }
 
-func (d *MsSqlDbDropper) DropDb(dbName string) error {
+// DropDb - drops database with following name
+// dbName - name of database to drop
+func (d *MsSQLDbDropper) DropDb(dbName string) error {
 	return fmt.Errorf("not implemented")
 }
