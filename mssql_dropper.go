@@ -1,10 +1,13 @@
 package main
 
-import "fmt"
+const (
+	master              = "master"
+	mssqlQueryDatabases = "select name from sys.databases where name like '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-%'"
+)
 
-// MsSQLDbDropper is a DbDropper realisation for T-SQL dialect
+// MsSQLDbDropper is a dbDropper realisation for T-SQL dialect
 type MsSQLDbDropper struct {
-	DbDropper
+	dbDropper
 }
 
 // Run - runs db dropper
@@ -14,11 +17,11 @@ func (d *MsSQLDbDropper) Run() {
 
 // GetDbNames - gets all database names that satisfies name condition
 func (d *MsSQLDbDropper) GetDbNames() (names []string, err error) {
-	return nil, fmt.Errorf("not implemented yet")
+	return getDbNames(master, d.connString, mssqlQueryDatabases)
 }
 
 // DropDb - drops database with following name
 // dbName - name of database to drop
 func (d *MsSQLDbDropper) DropDb(dbName string) error {
-	return fmt.Errorf("not implemented")
+	return dropDb(master, dbName, d.connString)
 }

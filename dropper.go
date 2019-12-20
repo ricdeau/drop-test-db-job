@@ -11,28 +11,31 @@ import (
 	"time"
 )
 
+// DbDroppingJob - seek for old databases than drops them.
+// The name of database must begin with 10 decimal digits, which represents
+// UNIX milliseconds timestamp of database creation time
 type DbDroppingJob interface {
 	cron.Job
 	Setup(connString string, ttl time.Duration)
 }
 
-type dbDropper interface {
+type dbDropperInterface interface {
 	GetDbNames() ([]string, error)
 	DropDb(dbName string) error
 	FilterOldDatabases(names []string) <-chan string
 }
 
-type DbDropper struct {
+type dbDropper struct {
 	connString string
 	ttl        time.Duration
 }
 
-func (d *DbDropper) Setup(connString string, ttl time.Duration) {
+func (d *dbDropper) Setup(connString string, ttl time.Duration) {
 	d.connString = connString
 	d.ttl = ttl
 }
 
-func (d *DbDropper) FilterOldDatabases(names []string) <-chan string {
+func (d *dbDropper) FilterOldDatabases(names []string) <-chan string {
 	ch := make(chan string)
 	now := int(time.Now().Unix())
 	go func() {
@@ -54,7 +57,7 @@ func (d *DbDropper) FilterOldDatabases(names []string) <-chan string {
 	return ch
 }
 
-func run(d dbDropper) {
+func run(d dbDropperInterface) {
 	log.Println("Start executing job.")
 	log.Println("Scanning for databases...")
 	names, err := d.GetDbNames()
@@ -65,11 +68,11 @@ func run(d dbDropper) {
 	log.Println("Start seeking and dropping old databases...")
 
 	var dropped int32
-	sem := WaitingSemaphore{counter: 4}
+	sema := WaitingSemaphore{counter: 4}
 	for name := range d.FilterOldDatabases(names) {
-		sem.Acquire()
+		sema.Acquire()
 		go func(n string) {
-			defer sem.Release()
+			defer sema.Release()
 			err := d.DropDb(n)
 			if err != nil {
 				log.Printf("Job execution error: error while dropping %s: %v\n", n, err)
@@ -78,7 +81,7 @@ func run(d dbDropper) {
 			atomic.AddInt32(&dropped, 1)
 		}(name)
 	}
-	sem.Wait()
+	sema.Wait()
 
 	log.Printf("%d old databases dropped\n", dropped)
 	log.Println("Job executed")
