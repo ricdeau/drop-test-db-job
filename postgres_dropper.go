@@ -1,5 +1,7 @@
 package main
 
+import _ "github.com/lib/pq"
+
 const (
 	postgres               = "postgres"
 	postgresQueryDatabases = "SELECT datname FROM pg_database WHERE datname ~ '^\\d{10}-'"

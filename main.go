@@ -17,6 +17,11 @@ const (
 	MsSQL    = "mssql"
 )
 
+const (
+	defaultTtl  = 6 * time.Hour
+	defaultCron = "@every 1m"
+)
+
 var (
 	ttlFlag             time.Duration
 	dbTypeFlag          string
@@ -25,10 +30,10 @@ var (
 )
 
 func init() {
-	flag.DurationVar(&ttlFlag, "db-ttl", 6*time.Hour, "Database time to live")
+	flag.DurationVar(&ttlFlag, "db-ttl", defaultTtl, "Database time to live")
 	flag.StringVar(&dbTypeFlag, "db-type", Postgres, "DB type. Must be postgres or MsSQL")
 	flag.StringVar(&connStringFlag, "conn-string", "", "DB connection string")
-	flag.StringVar(&jobScheduleCronFlag, "cron", "@every 10s", "Job Schedule in cron format")
+	flag.StringVar(&jobScheduleCronFlag, "cron", defaultCron, "Job Schedule in cron format")
 	flag.Parse()
 }
 
@@ -53,6 +58,7 @@ func main() {
 	for scanner.Scan() {
 		text := strings.ToLower(scanner.Text())
 		if text == "exit" {
+			fmt.Println("Stopping...")
 			<-c.Stop().Done()
 			os.Exit(0)
 		}

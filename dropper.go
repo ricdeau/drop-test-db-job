@@ -87,8 +87,8 @@ func run(d dbDropperInterface) {
 	log.Println("Job executed")
 }
 
-func getDbNames(dbName, connString, query string) (names []string, err error) {
-	db, err := sql.Open(dbName, connString)
+func getDbNames(driverName, connString, query string) (names []string, err error) {
+	db, err := sql.Open(driverName, connString)
 	if err != nil {
 		return
 	}

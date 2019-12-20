@@ -1,7 +1,9 @@
 package main
 
+import _ "github.com/denisenkom/go-mssqldb"
+
 const (
-	master              = "master"
+	sqlserver           = "sqlserver"
 	mssqlQueryDatabases = "select name from sys.databases where name like '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-%'"
 )
 
@@ -17,11 +19,11 @@ func (d *MsSQLDbDropper) Run() {
 
 // GetDbNames - gets all database names that satisfies name condition
 func (d *MsSQLDbDropper) GetDbNames() (names []string, err error) {
-	return getDbNames(master, d.connString, mssqlQueryDatabases)
+	return getDbNames(sqlserver, d.connString, mssqlQueryDatabases)
 }
 
 // DropDb - drops database with following name
 // dbName - name of database to drop
 func (d *MsSQLDbDropper) DropDb(dbName string) error {
-	return dropDb(master, dbName, d.connString)
+	return dropDb(sqlserver, dbName, d.connString)
 }

@@ -2,11 +2,13 @@ FROM golang:alpine AS backend-builder
 RUN apk update \
     && apk upgrade \
     && apk add --no-cache git
-WORKDIR .
-RUN mkdir ./out
+WORKDIR $GOPATH/src/dropper
+COPY . .
 RUN GOOS=linux go build -o /out/dropper
+COPY run.sh /out/
 
 FROM alpine:latest
 WORKDIR /app
 COPY --from=backend-builder /out .
-CMD ["./dropper --db-type=$DBTYPE --db-ttl=$DB_TTL --conn-string=$CONNECTION_STRING --cron=$JOB_SCHEDULE_CRON"]
+RUN chmod 777 run.sh
+CMD ["sh", "./run.sh"]
