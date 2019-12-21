@@ -22,47 +22,64 @@ const (
 	defaultCron = "@every 1m"
 )
 
+// Application keys
+const (
+	backgroundKey = "bg"
+	ttlKey        = "db-ttl"
+	dbTypeKey     = "db-type"
+	connStringKey = "conn-string"
+	cronKey       = "cron"
+)
+
 var (
-	ttlFlag             time.Duration
-	dbTypeFlag          string
-	connStringFlag      string
-	jobScheduleCronFlag string
+	background      bool
+	dbTtl           time.Duration
+	dbType          string
+	connString      string
+	jobScheduleCron string
 )
 
 func init() {
-	flag.DurationVar(&ttlFlag, "db-ttl", defaultTtl, "Database time to live")
-	flag.StringVar(&dbTypeFlag, "db-type", Postgres, "DB type. Must be postgres or MsSQL")
-	flag.StringVar(&connStringFlag, "conn-string", "", "DB connection string")
-	flag.StringVar(&jobScheduleCronFlag, "cron", defaultCron, "Job Schedule in cron format")
+	flag.BoolVar(&background, backgroundKey, false, "Set application to background")
+	flag.DurationVar(&dbTtl, ttlKey, defaultTtl, "Database time to live")
+	flag.StringVar(&dbType, dbTypeKey, Postgres, "DB type. Must be postgres or MsSQL")
+	flag.StringVar(&connString, connStringKey, "", "DB connection string")
+	flag.StringVar(&jobScheduleCron, cronKey, defaultCron, "Job Schedule in cron format")
 	flag.Parse()
 }
 
 func main() {
-	job, err := getDbDroppingJob(dbTypeFlag)
+	job, err := getDbDroppingJob(dbType)
 	if err != nil {
 		failWithParsingError(err)
 	}
-	schedule, err := cron.ParseStandard(jobScheduleCronFlag)
+	schedule, err := cron.ParseStandard(jobScheduleCron)
 	if err != nil {
 		failWithParsingError(err)
 	}
 
 	c := cron.New()
-	job.Setup(connStringFlag, ttlFlag)
+	job.Setup(connString, dbTtl)
 	c.Schedule(schedule, job)
-	c.Start()
-
-	fmt.Printf("Start db dropping job for %v with schedule: %v\n", dbTypeFlag, jobScheduleCronFlag)
-	fmt.Println(`Type "exit" to stop.`)
-	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		text := strings.ToLower(scanner.Text())
-		if text == "exit" {
-			fmt.Println("Stopping...")
-			<-c.Stop().Done()
-			os.Exit(0)
+	fmt.Printf("Start db dropping job for %v with schedule: %v\n", dbType, jobScheduleCron)
+	if background {
+		c.Run()
+	} else {
+		fmt.Println(`Type "exit" to stop.`)
+		scanner := bufio.NewScanner(os.Stdin)
+		for scanner.Scan() {
+			text := strings.ToLower(scanner.Text())
+			if text == "exit" {
+				stop(c)
+			}
 		}
 	}
+}
+
+func stop(c *cron.Cron) {
+	fmt.Println("Stopping...")
+	<-c.Stop().Done()
+	os.Exit(0)
 }
 
 func getDbDroppingJob(dbType string) (DbDroppingJob, error) {
