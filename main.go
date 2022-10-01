@@ -1,98 +1,63 @@
 package main
 
 import (
-	"bufio"
-	"flag"
 	"fmt"
-	"github.com/robfig/cron/v3"
-	"log"
 	"os"
-	"strings"
+	"os/signal"
+	"syscall"
 	"time"
+
+	"github.com/alecthomas/kong"
+	"github.com/ricdeau/drop-test-db-job/context"
+	"github.com/ricdeau/drop-test-db-job/plugins"
+	"github.com/robfig/cron/v3"
 )
 
-// Db engine type, for which job is scheduled
-const (
-	Postgres = "postgres"
-	MsSQL    = "mssql"
-)
-
-const (
-	defaultTtl  = 6 * time.Hour
-	defaultCron = "@every 1m"
-)
-
-// Application keys
-const (
-	backgroundKey = "bg"
-	ttlKey        = "db-ttl"
-	dbTypeKey     = "db-type"
-	connStringKey = "conn-string"
-	cronKey       = "cron"
-)
-
-var (
-	background      bool
-	dbTtl           time.Duration
-	dbType          string
-	connString      string
-	jobScheduleCron string
-)
-
-func init() {
-	flag.BoolVar(&background, backgroundKey, false, "Set application to background")
-	flag.DurationVar(&dbTtl, ttlKey, defaultTtl, "Database time to live")
-	flag.StringVar(&dbType, dbTypeKey, Postgres, "DB type. Must be postgres or MsSQL")
-	flag.StringVar(&connString, connStringKey, "", "DB connection string")
-	flag.StringVar(&jobScheduleCron, cronKey, defaultCron, "Job Schedule in cron format")
-	flag.Parse()
+type Command struct {
+	AgeThreshold  time.Duration
+	DbType        string
+	DbNamePattern string
+	DSN           string
+	Schedule      string
 }
 
 func main() {
-	job, err := getDbDroppingJob(dbType)
+	command := kong.Parse(&Command{}, kong.Bind(context.New()))
+	command.FatalIfErrorf(command.Run())
+}
+
+func (c *Command) AfterApply(ctx *context.Context) (err error) {
+	ctx.AgeThreshold = c.AgeThreshold
+	ctx.DSN = c.DSN
+	ctx.DbNamePattern = c.DbNamePattern
+
+	ctx.Schedule, err = cron.ParseStandard(c.Schedule)
 	if err != nil {
-		failWithParsingError(err)
+		return fmt.Errorf("parse schedule: %v", err)
 	}
-	schedule, err := cron.ParseStandard(jobScheduleCron)
+	ctx.Plugin, err = plugins.GetPlugin(c.DbType)
 	if err != nil {
-		failWithParsingError(err)
+		return fmt.Errorf("get plugin for %s: %v", c.DbType, err)
 	}
 
-	c := cron.New()
-	job.Setup(connString, dbTtl)
-	c.Schedule(schedule, job)
-	fmt.Printf("Start db dropping job for %v with schedule: %v\n", dbType, jobScheduleCron)
-	if background {
-		c.Run()
-	} else {
-		fmt.Println(`Type "exit" to stop.`)
-		scanner := bufio.NewScanner(os.Stdin)
-		for scanner.Scan() {
-			text := strings.ToLower(scanner.Text())
-			if text == "exit" {
-				stop(c)
-			}
-		}
+	return nil
+}
+
+func (c *Command) Run(ctx *Context) error {
+	newCron := cron.New()
+	for _, j := range ctx.Jobs {
+		newCron.Schedule(j.GetSchedule(), j)
 	}
-}
+	sig := make(chan os.Signal, 1)
+	go func() {
+		<-sig
+		<-newCron.Stop().Done()
+		ctx.Cancel()
+	}()
 
-func stop(c *cron.Cron) {
-	fmt.Println("Stopping...")
-	<-c.Stop().Done()
-	os.Exit(0)
-}
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM, syscall.SIGSTOP)
 
-func getDbDroppingJob(dbType string) (DbDroppingJob, error) {
-	switch strings.ToLower(dbType) {
-	default:
-		return nil, fmt.Errorf("invalid db-type: %v", dbType)
-	case Postgres:
-		return new(PostgresDbDropper), nil
-	case MsSQL:
-		return new(MsSQLDbDropper), nil
-	}
-}
+	<-ctx.Done()
 
-func failWithParsingError(err error) {
-	log.Fatalf("Argument parsing error: %v", err)
+	return nil
 }
